@@ -1,3 +1,4 @@
+import { GameUpdateType } from "../../core/game/GameUpdates";
 import { Config } from "../configuration/Config";
 import { Execution, Game, Player, UnitType } from "../game/Game";
 import { GameImpl } from "../game/GameImpl";
@@ -95,6 +96,29 @@ export class PlayerExecution implements Execution {
         const end = performance.now();
         if (end - start > 1000) {
           console.log(`player ${this.player.name()}, took ${end - start}ms`);
+        }
+      }
+    }
+
+    if (ticks % 20 === 0) {
+      if (this.player.isDisconnected()) {
+        if (this.player.getTimeDisconnected() === 0) {
+          this.player.setTimeDisconnected(new Date().getTime());
+        }
+        if (this.player.canTransformIntoNation()) {
+          // Do the transformation
+          for (const player of this.mg.allPlayers()) {
+            this.mg.displayChat(
+              `${this.player.displayName} has transformed into a nation due to being inactive. You may now attack them!`,
+              GameUpdateType.DisplayChatEvent,
+              player.id(),
+              this.player.id(),
+            );
+          }
+        }
+      } else {
+        if (this.player.getTimeDisconnected() > 0) {
+          this.player.setTimeDisconnected(new Date().getTime());
         }
       }
     }

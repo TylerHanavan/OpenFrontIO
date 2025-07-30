@@ -500,6 +500,12 @@ export interface Player {
   isDisconnected(): boolean;
   markDisconnected(isDisconnected: boolean): void;
 
+  getTimeDisconnected(): number;
+  setTimeDisconnected(num: number): void;
+
+  canTransformIntoNation(): boolean;
+  asNation(): Nation;
+
   hasSpawned(): boolean;
   setHasSpawned(hasSpawned: boolean): void;
 

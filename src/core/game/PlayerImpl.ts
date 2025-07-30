@@ -27,6 +27,7 @@ import {
   Gold,
   MessageType,
   MutableAlliance,
+  Nation,
   Player,
   PlayerID,
   PlayerInfo,
@@ -106,6 +107,8 @@ export class PlayerImpl implements Player {
 
   private _hasSpawned = false;
   private _isDisconnected = false;
+
+  private _timeDisconnected: number = 0;
 
   constructor(
     private mg: GameImpl,
@@ -1047,6 +1050,22 @@ export class PlayerImpl implements Player {
 
   markDisconnected(isDisconnected: boolean): void {
     this._isDisconnected = isDisconnected;
+  }
+
+  getTimeDisconnected(): number {
+    return this._timeDisconnected;
+  }
+
+  setTimeDisconnected(num: number): void {
+    this._timeDisconnected = num;
+  }
+
+  canTransformIntoNation(): boolean {
+    return new Date().getTime() - this.getTimeDisconnected() > 60 * 1000;
+  }
+
+  asNation(): Nation {
+    return new Nation(0, 1, this.playerInfo);
   }
 
   hash(): number {
