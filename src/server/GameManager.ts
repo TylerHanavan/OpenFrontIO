@@ -1,4 +1,5 @@
 import { Logger } from "winston";
+import WebSocket from "ws";
 import { ServerConfig } from "../core/configuration/Config";
 import { Difficulty, GameMapType, GameMode, GameType } from "../core/game/Game";
 import { GameConfig, GameID } from "../core/Schemas";
@@ -17,6 +18,24 @@ export class GameManager {
 
   public game(id: GameID): GameServer | null {
     return this.games.get(id) ?? null;
+  }
+
+  getClient(clientID: string, gameID: GameID): Client | undefined {
+    return this.games.get(gameID)?.getClient(clientID) ?? undefined;
+  }
+
+  updateClient(
+    client: Client,
+    gameID: GameID,
+    ws: WebSocket,
+    lastTurn: number,
+  ): boolean {
+    const game = this.games.get(gameID);
+    if (game) {
+      game.updateClient(client, ws, lastTurn);
+      return true;
+    }
+    return false;
   }
 
   addClient(client: Client, gameID: GameID, lastTurn: number): boolean {
@@ -53,7 +72,9 @@ export class GameManager {
   activeClients(): number {
     let totalClients = 0;
     this.games.forEach((game: GameServer) => {
-      totalClients += game.activeClients.length;
+      totalClients += Array.from(game.getAllClients().values()).filter(
+        (c) => !c.isDisconnected(),
+      ).length;
     });
     return totalClients;
   }

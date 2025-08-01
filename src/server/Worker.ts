@@ -286,8 +286,17 @@ export function startWorker() {
         return;
       }
 
-      game.kickClient(clientID);
-      res.status(200).send("Player kicked successfully");
+      const client = game.getClient(clientID);
+      if (client) {
+        if (client.isKicked()) {
+          res.status(400).send("Player is already kicked from the game");
+        } else {
+          game.kickClient(client);
+          res.status(200).send("Player kicked successfully");
+        }
+      } else {
+        res.status(404).send("Player not found");
+      }
     }),
   );
 
@@ -420,31 +429,58 @@ export function startWorker() {
             }
           }
 
-          // Create client and add to game
-          const client = new Client(
+          const existingClient = gm.getClient(
             clientMsg.clientID,
-            persistentId,
-            claims,
-            roles,
-            flares,
-            ip,
-            clientMsg.username,
-            ws,
-            clientMsg.flag,
-            clientMsg.pattern,
-          );
-
-          const wasFound = gm.addClient(
-            client,
             clientMsg.gameID,
-            clientMsg.lastTurn,
           );
 
-          if (!wasFound) {
+          if (!existingClient) {
             log.info(
-              `game ${clientMsg.gameID} not found on worker ${workerId}`,
+              `Existing client not found for ${clientMsg.clientID} in gameID ${clientMsg.gameID}`,
             );
-            // Handle game not found case
+            // Create client and add to game
+            const newClient = new Client(
+              clientMsg.clientID,
+              persistentId,
+              claims,
+              roles,
+              flares,
+              ip,
+              clientMsg.username,
+              ws,
+              clientMsg.flag,
+              clientMsg.pattern,
+            );
+
+            const wasFound = gm.addClient(
+              newClient,
+              clientMsg.gameID,
+              clientMsg.lastTurn,
+            );
+
+            if (!wasFound) {
+              log.info(
+                `game ${clientMsg.gameID} not found on worker ${workerId}`,
+              );
+              // Handle game not found case
+            }
+          } else {
+            log.info(
+              `Existing client was found for ${clientMsg.clientID} in gameID ${clientMsg.gameID}, updating client...`,
+            );
+            const wasFound = gm.updateClient(
+              existingClient,
+              clientMsg.gameID,
+              ws,
+              clientMsg.lastTurn,
+            );
+
+            if (!wasFound) {
+              log.info(
+                `game ${clientMsg.gameID} not found on worker ${workerId}`,
+              );
+              // Handle game not found case
+            }
           }
 
           // Handle other message types

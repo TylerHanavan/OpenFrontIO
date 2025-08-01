@@ -40,10 +40,7 @@ export class GameServer {
 
   private turns: Turn[] = [];
   private intents: Intent[] = [];
-  public activeClients: Client[] = [];
-  // Used for record record keeping
   private allClients: Map<ClientID, Client> = new Map();
-  private clientsDisconnectedStatus: Map<ClientID, boolean> = new Map();
   private _hasStarted = false;
   private _startTime: number | null = null;
 
@@ -60,10 +57,7 @@ export class GameServer {
 
   private _hasPrestarted = false;
 
-  private kickedClients: Set<ClientID> = new Set();
   private outOfSyncClients: Set<ClientID> = new Set();
-
-  private websockets: Set<WebSocket> = new Set();
 
   constructor(
     public readonly id: string,
@@ -110,9 +104,49 @@ export class GameServer {
     }
   }
 
+  public getClient(clientID: string): Client | undefined {
+    return this.allClients.get(clientID);
+  }
+
+  public updateClient(client: Client, ws: WebSocket, lastTurn: number): void {
+    if (client.ws === ws) {
+      this.log.info(
+        `The same websocket was passed to updateClient as what already existed for ${client.clientID}`,
+      );
+    }
+    //Remove old ws listeners
+    client.ws.removeAllListeners("message");
+    //Close old ws
+    client.ws.close(1002, "WS_ERR_UNEXPECTED_RSV_1");
+    client.setWebSocket(ws);
+    //this.websockets.add(client.ws);
+
+    client.lastPing = Date.now();
+
+    this.reconfigureClientWebSocketListeners(client);
+
+    if (client.isDisconnected()) {
+      this.markClientDisconnected(client, false);
+    }
+
+    // In case a client joined the game late and missed the start message.
+    if (this._hasStarted) {
+      this.sendStartGameMsg(client.ws, lastTurn);
+    }
+  }
+
   public addClient(client: Client, lastTurn: number) {
-    this.websockets.add(client.ws);
-    if (this.kickedClients.has(client.clientID)) {
+    if (this.allClients.get(client.clientID)) {
+      this.log.warn(
+        `Cannot add client, there is already a client with that clientID connected. Use GameServer::updateClient() instead.`,
+        {
+          clientID: client.clientID,
+        },
+      );
+      return;
+    }
+    //this.websockets.add(client.ws);
+    if (client.isKicked()) {
       this.log.warn(`cannot add client, already kicked`, {
         clientID: client.clientID,
       });
@@ -127,7 +161,7 @@ export class GameServer {
 
     if (
       this.gameConfig.gameType === GameType.Public &&
-      this.activeClients.filter(
+      Array.from(this.allClients.values()).filter(
         (c) => c.ip === client.ip && c.clientID !== client.clientID,
       ).length >= 3
     ) {
@@ -140,7 +174,7 @@ export class GameServer {
 
     if (this.config.env() === GameEnv.Prod) {
       // Prevent multiple clients from using the same account in prod
-      const conflicting = this.activeClients.find(
+      const conflicting = Array.from(this.allClients.values()).find(
         (c) =>
           c.persistentID === client.persistentID &&
           c.clientID !== client.clientID,
@@ -155,39 +189,23 @@ export class GameServer {
         });
         // Kick the existing client instead of the new one, because this was causing issues when
         // a client wanted to replay the game afterwards.
-        this.kickClient(conflicting.clientID);
+        this.kickClient(conflicting);
       }
     }
 
-    // Remove stale client if this is a reconnect
-    const existing = this.activeClients.find(
-      (c) => c.clientID === client.clientID,
-    );
-    if (existing !== undefined) {
-      if (client.persistentID !== existing.persistentID) {
-        this.log.error("persistent ids do not match", {
-          clientID: client.clientID,
-          clientIP: ipAnonymize(client.ip),
-          clientPersistentID: client.persistentID,
-          existingIP: ipAnonymize(existing.ip),
-          existingPersistentID: existing.persistentID,
-        });
-        return;
-      }
-
-      client.lastPing = existing.lastPing;
-
-      this.activeClients = this.activeClients.filter((c) => c !== existing);
-    }
-
-    // Client connection accepted
-    this.activeClients.push(client);
     client.lastPing = Date.now();
-
-    this.markClientDisconnected(client.clientID, false);
 
     this.allClients.set(client.clientID, client);
 
+    this.reconfigureClientWebSocketListeners(client);
+
+    // In case a client joined the game late and missed the start message.
+    if (this._hasStarted) {
+      this.sendStartGameMsg(client.ws, lastTurn);
+    }
+  }
+
+  public reconfigureClientWebSocketListeners(client: Client) {
     client.ws.removeAllListeners("message");
     client.ws.on(
       "message",
@@ -235,7 +253,7 @@ export class GameServer {
           if (clientMsg.type === "winner") {
             if (
               this.outOfSyncClients.has(client.clientID) ||
-              this.kickedClients.has(client.clientID) ||
+              client.isKicked() ||
               this.winner !== null
             ) {
               return;
@@ -258,24 +276,15 @@ export class GameServer {
         clientID: client.clientID,
         persistentID: client.persistentID,
       });
-      this.activeClients = this.activeClients.filter(
+      /*this.activeClients = this.activeClients.filter(
         (c) => c.clientID !== client.clientID,
-      );
+      );*/
     });
     client.ws.on("error", (error: Error) => {
       if ((error as any).code === "WS_ERR_UNEXPECTED_RSV_1") {
         client.ws.close(1002, "WS_ERR_UNEXPECTED_RSV_1");
       }
     });
-
-    // In case a client joined the game late and missed the start message.
-    if (this._hasStarted) {
-      this.sendStartGameMsg(client.ws, lastTurn);
-    }
-  }
-
-  public numClients(): number {
-    return this.activeClients.length;
   }
 
   public startTime(): number {
@@ -309,7 +318,7 @@ export class GameServer {
     }
 
     const msg = JSON.stringify(prestartMsg.data);
-    this.activeClients.forEach((c) => {
+    Array.from(this.allClients.values()).forEach((c) => {
       this.log.info("sending prestart message", {
         clientID: c.clientID,
         persistentID: c.persistentID,
@@ -331,7 +340,7 @@ export class GameServer {
     const result = GameStartInfoSchema.safeParse({
       gameID: this.id,
       config: this.gameConfig,
-      players: this.activeClients.map((c) => ({
+      players: Array.from(this.allClients.values()).map((c) => ({
         username: c.username,
         clientID: c.clientID,
         pattern: c.pattern,
@@ -349,7 +358,7 @@ export class GameServer {
       () => this.endTurn(),
       this.config.turnIntervalMs(),
     );
-    this.activeClients.forEach((c) => {
+    Array.from(this.allClients.values()).forEach((c) => {
       this.log.info("sending start message", {
         clientID: c.clientID,
         persistentID: c.persistentID,
@@ -396,7 +405,7 @@ export class GameServer {
       type: "turn",
       turn: pastTurn,
     } satisfies ServerTurnMessage);
-    this.activeClients.forEach((c) => {
+    Array.from(this.allClients.values()).forEach((c) => {
       c.ws.send(msg);
     });
   }
@@ -406,7 +415,8 @@ export class GameServer {
     if (this.endTurnIntervalID) {
       clearInterval(this.endTurnIntervalID);
     }
-    this.websockets.forEach((ws) => {
+    this.allClients.forEach((client: Client, clientID: string) => {
+      const ws = client.getWebSocket();
       if (ws.readyState === WebSocket.OPEN) {
         ws.close(1000, "game has ended");
       }
@@ -455,8 +465,8 @@ export class GameServer {
 
   phase(): GamePhase {
     const now = Date.now();
-    const alive: Client[] = [];
-    for (const client of this.activeClients) {
+    let countAlive = 0;
+    for (const client of Array.from(this.allClients.values())) {
       if (now - client.lastPing > 60_000) {
         this.log.info("no pings received, terminating connection", {
           clientID: client.clientID,
@@ -466,10 +476,11 @@ export class GameServer {
           client.ws.close(1000, "no heartbeats received, closing connection");
         }
       } else {
-        alive.push(client);
+        countAlive++;
       }
     }
-    this.activeClients = alive;
+
+    //this.activeClients = alive;
     if (now > this.createdAt + this.maxGameDuration) {
       this.log.warn("game past max duration", {
         gameID: this.id,
@@ -478,11 +489,10 @@ export class GameServer {
     }
 
     const noRecentPings = now > this.lastPingUpdate + 20 * 1000;
-    const noActive = this.activeClients.length === 0;
 
     if (this.gameConfig.gameType !== GameType.Public) {
       if (this._hasStarted) {
-        if (noActive && noRecentPings) {
+        if (countAlive === 0 && noRecentPings) {
           this.log.info("private game complete", {
             gameID: this.id,
           });
@@ -500,13 +510,13 @@ export class GameServer {
     const notEnoughPlayers =
       this.gameConfig.gameType === GameType.Public &&
       this.gameConfig.maxPlayers &&
-      this.activeClients.length < this.gameConfig.maxPlayers;
+      countAlive < this.gameConfig.maxPlayers;
     if (lessThanLifetime && notEnoughPlayers) {
       return GamePhase.Lobby;
     }
     const warmupOver =
       now > this.createdAt + this.config.gameCreationRate() + 30 * 1000;
-    if (noActive && warmupOver && noRecentPings) {
+    if (countAlive === 0 && warmupOver && noRecentPings) {
       return GamePhase.Finished;
     }
 
@@ -520,7 +530,7 @@ export class GameServer {
   public gameInfo(): GameInfo {
     return {
       gameID: this.id,
-      clients: this.activeClients.map((c) => ({
+      clients: Array.from(this.allClients.values()).map((c) => ({
         username: c.username,
         clientID: c.clientID,
       })),
@@ -535,35 +545,26 @@ export class GameServer {
     return this.gameConfig.gameType === GameType.Public;
   }
 
-  public kickClient(clientID: ClientID): void {
-    if (this.kickedClients.has(clientID)) {
+  public kickClient(client: Client): void {
+    if (client.isKicked()) {
       this.log.warn(`cannot kick client, already kicked`, {
-        clientID,
+        clientID: client.clientID,
       });
       return;
     }
-    const client = this.activeClients.find((c) => c.clientID === clientID);
-    if (client) {
-      this.log.info("Kicking client from game", {
-        clientID: client.clientID,
-        persistentID: client.persistentID,
-      });
-      client.ws.send(
-        JSON.stringify({
-          type: "error",
-          error: "Kicked from game (you may have been playing on another tab)",
-        } satisfies ServerErrorMessage),
-      );
-      client.ws.close(1000, "Kicked from game");
-      this.activeClients = this.activeClients.filter(
-        (c) => c.clientID !== clientID,
-      );
-      this.kickedClients.add(clientID);
-    } else {
-      this.log.warn(`cannot kick client, not found in game`, {
-        clientID,
-      });
-    }
+    this.log.info("Kicking client from game", {
+      clientID: client.clientID,
+      persistentID: client.persistentID,
+    });
+    client.ws.send(
+      JSON.stringify({
+        type: "error",
+        error: "Kicked from game (you may have been playing on another tab)",
+      } satisfies ServerErrorMessage),
+    );
+    client.ws.close(1000, "Kicked from game");
+    this.markClientDisconnected(client, true);
+    client.markKicked(true);
   }
 
   private checkDisconnectedStatus() {
@@ -573,27 +574,26 @@ export class GameServer {
 
     const now = Date.now();
     for (const [clientID, client] of this.allClients) {
-      const isDisconnected = this.isClientDisconnected(clientID);
-      if (!isDisconnected && now - client.lastPing > this.disconnectedTimeout) {
-        this.markClientDisconnected(clientID, true);
+      const isDisconnected = client.isDisconnected();
+      if (
+        isDisconnected === false &&
+        now - client.lastPing > this.disconnectedTimeout
+      ) {
+        this.markClientDisconnected(client, true);
       } else if (
-        isDisconnected &&
+        isDisconnected === true &&
         now - client.lastPing < this.disconnectedTimeout
       ) {
-        this.markClientDisconnected(clientID, false);
+        this.markClientDisconnected(client, false);
       }
     }
   }
 
-  public isClientDisconnected(clientID: string): boolean {
-    return this.clientsDisconnectedStatus.get(clientID) ?? true;
-  }
-
-  private markClientDisconnected(clientID: string, isDisconnected: boolean) {
-    this.clientsDisconnectedStatus.set(clientID, isDisconnected);
+  private markClientDisconnected(client: Client, isDisconnected: boolean) {
+    client.markDisconnected(isDisconnected);
     this.addIntent({
       type: "mark_disconnected",
-      clientID: clientID,
+      clientID: client.clientID,
       isDisconnected: isDisconnected,
     });
   }
@@ -635,7 +635,10 @@ export class GameServer {
   }
 
   private handleSynchronization() {
-    if (this.activeClients.length <= 1) {
+    const clientsAlive = Array.from(this.allClients.values()).filter(
+      (c) => !c.isDisconnected(),
+    ).length;
+    if (clientsAlive <= 1) {
       return;
     }
     if (this.turns.length % 10 !== 0 || this.turns.length < 10) {
@@ -657,9 +660,8 @@ export class GameServer {
       type: "desync",
       turn: lastHashTurn,
       correctHash: mostCommonHash,
-      clientsWithCorrectHash:
-        this.activeClients.length - outOfSyncClients.length,
-      totalActiveClients: this.activeClients.length,
+      clientsWithCorrectHash: clientsAlive - outOfSyncClients.length,
+      totalActiveClients: clientsAlive,
     });
     if (!serverDesync.success) {
       this.log.warn("failed to create desync message", {
@@ -692,7 +694,7 @@ export class GameServer {
     const counts = new Map<number, number>();
 
     // Count occurrences of each hash
-    for (const client of this.activeClients) {
+    for (const client of this.allClients.values()) {
       if (client.hashes.has(turnNumber)) {
         const clientHash = client.hashes.get(turnNumber)!;
         counts.set(clientHash, (counts.get(clientHash) ?? 0) + 1);
@@ -713,7 +715,7 @@ export class GameServer {
     // Create a list of clients whose hash doesn't match the most common one
     let outOfSyncClients: Client[] = [];
 
-    for (const client of this.activeClients) {
+    for (const client of this.allClients.values()) {
       if (client.hashes.has(turnNumber)) {
         const clientHash = client.hashes.get(turnNumber)!;
         if (clientHash !== mostCommonHash) {
@@ -722,14 +724,24 @@ export class GameServer {
       }
     }
 
+    const clientsAlive = Array.from(this.allClients.values()).filter(
+      (c) => c.isDisconnected() === false,
+    ).length;
+
     // If half clients out of sync assume all are out of sync.
-    if (outOfSyncClients.length >= Math.floor(this.activeClients.length / 2)) {
-      outOfSyncClients = this.activeClients;
+    if (outOfSyncClients.length >= Math.floor(clientsAlive / 2)) {
+      outOfSyncClients = Array.from(this.allClients.values()).filter(
+        (c) => c.isDisconnected() === true,
+      );
     }
 
     return {
       mostCommonHash,
       outOfSyncClients,
     };
+  }
+
+  public getAllClients(): Map<string, Client> {
+    return this.allClients;
   }
 }
