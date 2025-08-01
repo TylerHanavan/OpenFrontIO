@@ -107,6 +107,8 @@ export class PlayerImpl implements Player {
   private _hasSpawned = false;
   private _isDisconnected = false;
 
+  private _disconnectedTime = 0;
+
   constructor(
     private mg: GameImpl,
     private _smallID: number,
@@ -505,6 +507,7 @@ export class PlayerImpl implements Player {
       return false;
     }
     if (this.isFriendly(other)) {
+      if (other.isDisconnected() && this.isOnSameTeam(other)) return true;
       return false;
     }
     for (const t of this.targets_) {
@@ -1047,6 +1050,7 @@ export class PlayerImpl implements Player {
 
   markDisconnected(isDisconnected: boolean): void {
     this._isDisconnected = isDisconnected;
+    if (isDisconnected) this._disconnectedTime = Date.now();
   }
 
   hash(): number {
@@ -1120,6 +1124,7 @@ export class PlayerImpl implements Player {
     const other = this.mg.owner(tile);
     if (other.isPlayer()) {
       if (this.isFriendly(other)) {
+        if (other.isDisconnected() && this.isOnSameTeam(other)) return true;
         return false;
       }
     }

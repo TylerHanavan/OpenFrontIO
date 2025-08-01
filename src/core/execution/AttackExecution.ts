@@ -88,7 +88,10 @@ export class AttackExecution implements Execution {
         this.active = false;
         return;
       }
-      if (this._owner.isOnSameTeam(this.target)) {
+      if (
+        this._owner.isOnSameTeam(this.target) &&
+        !this.target.isDisconnected()
+      ) {
         console.warn(
           `${this._owner.displayName()} cannot attack ${this.target.displayName()} because they are on the same team`,
         );
