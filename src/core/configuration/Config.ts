@@ -84,6 +84,7 @@ export interface Config {
   infiniteGold(): boolean;
   infiniteTroops(): boolean;
   instantBuild(): boolean;
+  allowAttackDisconnectedTeammates(): boolean;
   numSpawnPhaseTurns(): number;
   userSettings(): UserSettings;
   playerTeams(): TeamCountConfig;

@@ -90,7 +90,8 @@ export class AttackExecution implements Execution {
       }
       if (
         this._owner.isOnSameTeam(this.target) &&
-        !this.target.isDisconnected()
+        !this.target.isDisconnected() &&
+        this.mg.config().allowAttackDisconnectedTeammates()
       ) {
         console.warn(
           `${this._owner.displayName()} cannot attack ${this.target.displayName()} because they are on the same team`,

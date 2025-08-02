@@ -434,6 +434,7 @@ export class SinglePlayerModal extends LitElement {
               infiniteGold: this.infiniteGold,
               infiniteTroops: this.infiniteTroops,
               instantBuild: this.instantBuild,
+              allowAttackDisconnectedTeammates: false,
               disabledUnits: this.disabledUnits
                 .map((u) => Object.values(UnitType).find((ut) => ut === u))
                 .filter((ut): ut is UnitType => ut !== undefined),

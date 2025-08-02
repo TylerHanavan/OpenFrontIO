@@ -38,6 +38,7 @@ export class HostLobbyModal extends LitElement {
   @state() private infiniteGold: boolean = false;
   @state() private infiniteTroops: boolean = false;
   @state() private instantBuild: boolean = false;
+  @state() private allowAttackDisconnectedTeammates: boolean = true;
   @state() private lobbyId = "";
   @state() private copySuccess = false;
   @state() private players: string[] = [];
@@ -369,6 +370,22 @@ export class HostLobbyModal extends LitElement {
                   </div>
                 </label>
 
+                <label
+                  for="allow-attack-disconnected-teammates"
+                  class="option-card ${this.allowAttackDisconnectedTeammates ? "selected" : ""}"
+                >
+                  <div class="checkbox-icon"></div>
+                  <input
+                    type="checkbox"
+                    id="allow-attack-disconnected-teammates"
+                    @change=${this.handleAllowAttackDisconnectedTeammates}
+                    .checked=${this.allowAttackDisconnectedTeammates}
+                  />
+                  <div class="option-card-title">
+                    ${translateText("host_modal.allow-attack-disconnected-teammates")}
+                  </div>
+                </label>
+
                 <hr style="width: 100%; border-top: 1px solid #444; margin: 16px 0;" />
 
                 <!-- Individual disables for structures/weapons -->
@@ -525,6 +542,13 @@ export class HostLobbyModal extends LitElement {
     this.putGameConfig();
   }
 
+  private handleAllowAttackDisconnectedTeammates(e: Event) {
+    this.allowAttackDisconnectedTeammates = Boolean(
+      (e.target as HTMLInputElement).checked,
+    );
+    this.putGameConfig();
+  }
+
   private async handleDisableNPCsChange(e: Event) {
     this.disableNPCs = Boolean((e.target as HTMLInputElement).checked);
     console.log(`updating disable npcs to ${this.disableNPCs}`);
@@ -558,6 +582,8 @@ export class HostLobbyModal extends LitElement {
           infiniteGold: this.infiniteGold,
           infiniteTroops: this.infiniteTroops,
           instantBuild: this.instantBuild,
+          allowAttackDisconnectedTeammates:
+            this.allowAttackDisconnectedTeammates,
           gameMode: this.gameMode,
           disabledUnits: this.disabledUnits,
           playerTeams: this.teamCount,

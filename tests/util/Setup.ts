@@ -70,6 +70,7 @@ export async function setup(
     infiniteGold: false,
     infiniteTroops: false,
     instantBuild: false,
+    allowAttackDisconnectedTeammates: true,
     ..._gameConfig,
   };
   const config = new TestConfig(

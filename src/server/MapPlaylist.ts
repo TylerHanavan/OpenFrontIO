@@ -84,6 +84,7 @@ export class MapPlaylist {
       infiniteGold: false,
       infiniteTroops: false,
       instantBuild: false,
+      allowAttackDisconnectedTeammates: true,
       disableNPCs: mode === GameMode.Team,
       gameMode: mode,
       playerTeams,

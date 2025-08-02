@@ -325,6 +325,9 @@ export class DefaultConfig implements Config {
   infiniteTroops(): boolean {
     return this._gameConfig.infiniteTroops;
   }
+  allowAttackDisconnectedTeammates(): boolean {
+    return this._gameConfig.allowAttackDisconnectedTeammates;
+  }
   trainSpawnRate(numberOfStations: number): number {
     return Math.min(1400, Math.round(20 * Math.pow(numberOfStations, 0.5)));
   }

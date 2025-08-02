@@ -507,7 +507,12 @@ export class PlayerImpl implements Player {
       return false;
     }
     if (this.isFriendly(other)) {
-      if (other.isDisconnected() && this.isOnSameTeam(other)) return true;
+      if (
+        other.isDisconnected() &&
+        this.isOnSameTeam(other) &&
+        this.mg.config().allowAttackDisconnectedTeammates()
+      )
+        return true;
       return false;
     }
     for (const t of this.targets_) {
@@ -1124,7 +1129,12 @@ export class PlayerImpl implements Player {
     const other = this.mg.owner(tile);
     if (other.isPlayer()) {
       if (this.isFriendly(other)) {
-        if (other.isDisconnected() && this.isOnSameTeam(other)) return true;
+        if (
+          other.isDisconnected() &&
+          this.isOnSameTeam(other) &&
+          this.mg.config().allowAttackDisconnectedTeammates()
+        )
+          return true;
         return false;
       }
     }
