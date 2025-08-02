@@ -741,7 +741,23 @@ export class GameServer {
     };
   }
 
-  public getAllClients(): Map<string, Client> {
-    return this.allClients;
+  public getAllClients(): Client[] {
+    return Array.from(this.allClients.values());
+  }
+
+  public getAliveClients(): Client[] {
+    return Array.from(this.allClients.values()).filter(
+      (c) => !c.isDisconnected() && !c.isKicked(),
+    );
+  }
+
+  public getDisconnectedClients(): Client[] {
+    return Array.from(this.allClients.values()).filter((c) =>
+      c.isDisconnected(),
+    );
+  }
+
+  public getKickedClients(): Client[] {
+    return Array.from(this.allClients.values()).filter((c) => c.isKicked());
   }
 }

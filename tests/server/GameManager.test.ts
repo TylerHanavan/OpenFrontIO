@@ -37,6 +37,16 @@ let emptyStringArray: string[];
 
 let logger: Logger;
 
+type ClientStatsFn = (
+  gs: GameServer,
+  all: number,
+  alive: number,
+  disconnected: number,
+  kicked: number,
+) => number;
+
+let testClientsLists: ClientStatsFn;
+
 describe("GameServer and GameManager", () => {
   beforeAll(() => {
     logger = createLogger({
@@ -46,6 +56,19 @@ describe("GameServer and GameManager", () => {
     });
     emptyStringArray = [];
     jest.useFakeTimers();
+
+    testClientsLists = (
+      gs: GameServer,
+      all: number,
+      alive: number,
+      disconnected: number,
+      kicked: number,
+    ): void => {
+      expect(gs.getAllClients().length).toBe(all);
+      expect(gs.getAliveClients().length).toBe(alive);
+      expect(gs.getDisconnectedClients().length).toBe(disconnected);
+      expect(gs.getKickedClients().length).toBe(kicked);
+    };
   });
 
   afterAll(() => {
@@ -93,59 +116,59 @@ describe("GameServer and GameManager", () => {
 
   test("GameManager client counting is working correctly", async () => {
     expect(gm.activeClients()).toBe(0);
-    expect(gameServer1.numClients()).toBe(0);
-    expect(gameServer2.numClients()).toBe(0);
+    testClientsLists(gameServer1, 0, 0, 0, 0);
+    testClientsLists(gameServer2, 0, 0, 0, 0);
 
     expect(gm.addClient(clients[0], "001", 0)).toBeTruthy();
 
     expect(gm.activeClients()).toBe(1);
-    expect(gameServer1.numClients()).toBe(1);
-    expect(gameServer2.numClients()).toBe(0);
+    testClientsLists(gameServer1, 1, 1, 0, 0);
+    testClientsLists(gameServer2, 0, 0, 0, 0);
 
     expect(gm.addClient(clients[1], "001", 0)).toBeTruthy();
 
     expect(gm.activeClients()).toBe(2);
-    expect(gameServer1.numClients()).toBe(2);
-    expect(gameServer2.numClients()).toBe(0);
+    testClientsLists(gameServer1, 2, 2, 0, 0);
+    testClientsLists(gameServer2, 0, 0, 0, 0);
 
     expect(gm.addClient(clients[2], "002", 0)).toBeTruthy();
 
     expect(gm.activeClients()).toBe(3);
-    expect(gameServer1.numClients()).toBe(2);
-    expect(gameServer2.numClients()).toBe(1);
+    testClientsLists(gameServer1, 2, 2, 0, 0);
+    testClientsLists(gameServer2, 1, 1, 0, 0);
   });
 
   test("GameServer client counting is working correctly", async () => {
     expect(gm.activeClients()).toBe(0);
-    expect(gameServer1.numClients()).toBe(0);
-    expect(gameServer2.numClients()).toBe(0);
+    testClientsLists(gameServer1, 0, 0, 0, 0);
+    testClientsLists(gameServer2, 0, 0, 0, 0);
 
     gameServer1.addClient(clients[0], 0);
 
     expect(gm.activeClients()).toBe(1);
-    expect(gameServer1.numClients()).toBe(1);
-    expect(gameServer2.numClients()).toBe(0);
+    testClientsLists(gameServer1, 1, 1, 0, 0);
+    testClientsLists(gameServer2, 0, 0, 0, 0);
 
     gameServer1.addClient(clients[1], 0);
     gameServer2.addClient(clients[2], 0);
 
     expect(gm.activeClients()).toBe(3);
-    expect(gameServer1.numClients()).toBe(2);
-    expect(gameServer2.numClients()).toBe(1);
+    testClientsLists(gameServer1, 2, 2, 0, 0);
+    testClientsLists(gameServer2, 1, 1, 0, 0);
   });
 
   test("GameServer test kicking a client", async () => {
     gameServer1.addClient(clients[0], 0);
 
     expect(gm.activeClients()).toBe(1);
-    expect(gameServer1.numClients()).toBe(1);
-    expect(gameServer2.numClients()).toBe(0);
+    testClientsLists(gameServer1, 1, 1, 0, 0);
+    testClientsLists(gameServer2, 0, 0, 0, 0);
 
-    gameServer1.kickClient(clients[0].clientID);
+    gameServer1.kickClient(clients[0]);
 
     expect(gm.activeClients()).toBe(0);
-    expect(gameServer1.numClients()).toBe(0);
-    expect(gameServer2.numClients()).toBe(0);
+    testClientsLists(gameServer1, 1, 0, 1, 1);
+    testClientsLists(gameServer2, 0, 0, 0, 0);
 
     gameServer1.addClient(
       new Client(
@@ -164,16 +187,16 @@ describe("GameServer and GameManager", () => {
     );
 
     expect(gm.activeClients()).toBe(0);
-    expect(gameServer1.numClients()).toBe(0);
-    expect(gameServer2.numClients()).toBe(0);
+    testClientsLists(gameServer1, 1, 0, 1, 1);
+    testClientsLists(gameServer2, 0, 0, 0, 0);
   });
 
   test("GameServer check if persistent ids do not match", async () => {
     gameServer1.addClient(clients[0], 0);
 
     expect(gm.activeClients()).toBe(1);
-    expect(gameServer1.numClients()).toBe(1);
-    expect(gameServer2.numClients()).toBe(0);
+    testClientsLists(gameServer1, 1, 1, 0, 0);
+    testClientsLists(gameServer2, 0, 0, 0, 0);
 
     gameServer1.addClient(
       new Client(
@@ -192,7 +215,7 @@ describe("GameServer and GameManager", () => {
     );
 
     expect(gm.activeClients()).toBe(1);
-    expect(gameServer1.numClients()).toBe(1);
-    expect(gameServer2.numClients()).toBe(0);
+    testClientsLists(gameServer1, 1, 1, 0, 0);
+    testClientsLists(gameServer2, 0, 0, 0, 0);
   });
 });
