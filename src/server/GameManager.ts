@@ -37,7 +37,7 @@ export class GameManager {
       infiniteGold: false,
       infiniteTroops: false,
       instantBuild: false,
-      allowAttackDisconnectedTeammates: false,
+      allowAttackDisconnectedTeammates: true,
       gameMode: GameMode.FFA,
       bots: 400,
       disabledUnits: [],

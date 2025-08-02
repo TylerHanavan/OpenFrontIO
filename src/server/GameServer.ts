@@ -96,6 +96,10 @@ export class GameServer {
     if (gameConfig.instantBuild !== undefined) {
       this.gameConfig.instantBuild = gameConfig.instantBuild;
     }
+    if (gameConfig.allowAttackDisconnectedTeammates !== undefined) {
+      this.gameConfig.allowAttackDisconnectedTeammates =
+        gameConfig.allowAttackDisconnectedTeammates;
+    }
     if (gameConfig.gameMode !== undefined) {
       this.gameConfig.gameMode = gameConfig.gameMode;
     }
