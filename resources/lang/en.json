@@ -215,7 +215,8 @@
     "player": "Player",
     "players": "Players",
     "waiting": "Waiting for players...",
-    "start": "Start Game"
+    "start": "Start Game",
+    "allow-attack-disconnected-teammates": "Allow attacking disconnected teammates"
   },
   "team_colors": {
     "red": "Red",
