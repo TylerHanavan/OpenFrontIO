@@ -23,7 +23,14 @@ export function canBuildTransportShip(
   if (other === player) {
     return false;
   }
-  if (other.isPlayer() && player.isFriendly(other)) {
+
+  if (
+    other.isPlayer() &&
+    player.isFriendly(other) &&
+    (!other.isDisconnected() ||
+      !player.isOnSameTeam(other) ||
+      !game.config().allowAttackDisconnectedTeammates())
+  ) {
     return false;
   }
 

@@ -511,8 +511,9 @@ export class PlayerImpl implements Player {
         other.isDisconnected() &&
         this.isOnSameTeam(other) &&
         this.mg.config().allowAttackDisconnectedTeammates()
-      )
+      ) {
         return true;
+      }
       return false;
     }
     for (const t of this.targets_) {
@@ -706,7 +707,7 @@ export class PlayerImpl implements Player {
     if (this.team() === ColoredTeams.Bot || other.team() === ColoredTeams.Bot) {
       return false;
     }
-    return this._team === other.team();
+    return this.team() === other.team();
   }
 
   isFriendly(other: Player): boolean {

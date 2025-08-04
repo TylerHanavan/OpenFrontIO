@@ -187,7 +187,23 @@ export class TransportShipExecution implements Execution {
         }
         this.attacker.conquer(this.dst);
         if (this.target.isPlayer() && this.attacker.isFriendly(this.target)) {
-          this.attacker.addTroops(this.boat.troops());
+          if (
+            this.attacker.isOnSameTeam(this.target) &&
+            this.target.isDisconnected() &&
+            this.mg.config().allowAttackDisconnectedTeammates()
+          ) {
+            this.mg.addExecution(
+              new AttackExecution(
+                this.boat.troops(),
+                this.attacker,
+                this.targetID,
+                this.dst,
+                false,
+              ),
+            );
+          } else {
+            this.attacker.addTroops(this.boat.troops());
+          }
         } else {
           this.mg.addExecution(
             new AttackExecution(

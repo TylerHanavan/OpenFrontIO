@@ -4,8 +4,8 @@ import {
   PlayerInfo,
   PlayerType,
   UnitType,
-} from "../src/core/game/Game";
-import { setup } from "./util/Setup";
+} from "../../../src/core/game/Game";
+import { setup } from "../../util/Setup";
 
 let game: Game;
 let player: Player;
@@ -106,5 +106,46 @@ describe("PlayerImpl", () => {
       player.conquer(tile);
     }
     expect(other.canSendAllianceRequest(player)).toBe(false);
+  });
+
+  test("Attacking teammates only allowed if the teammate disconnected", async () => {
+    jest.spyOn(player, "isAlive").mockReturnValue(true);
+    jest.spyOn(other, "isAlive").mockReturnValue(true);
+    jest.spyOn(player, "isDisconnected").mockReturnValue(false);
+    jest.spyOn(other, "isDisconnected").mockReturnValue(false);
+
+    expect(player.canTarget(other)).toBe(true);
+    expect(other.canTarget(player)).toBe(true);
+
+    jest.spyOn(player, "team").mockReturnValue("Red");
+    jest.spyOn(other, "team").mockReturnValue("Red");
+
+    expect(player.canTarget(other)).toBe(false);
+    expect(other.canTarget(player)).toBe(false);
+
+    expect(player.isFriendly(other)).toBe(true);
+    expect(other.isFriendly(player)).toBe(true);
+
+    expect(player.isOnSameTeam(other)).toBe(true);
+    expect(other.isOnSameTeam(player)).toBe(true);
+
+    expect(player.isAlliedWith(other)).toBe(false);
+    expect(other.isAlliedWith(player)).toBe(false);
+
+    jest.spyOn(other, "isDisconnected").mockReturnValue(true);
+
+    game.config().allowAttackDisconnectedTeammates = () => true;
+
+    expect(game.config().allowAttackDisconnectedTeammates).toBeTruthy();
+
+    expect(player.canTarget(other)).toBe(true);
+  });
+
+  test("Marking player disconnected", async () => {
+    expect(player.isDisconnected()).toBe(false);
+    player.markDisconnected(true);
+    expect(player.isDisconnected()).toBe(true);
+    player.markDisconnected(false);
+    expect(player.isDisconnected()).toBe(false);
   });
 });
