@@ -125,7 +125,7 @@ describe("TransportShipExecution", () => {
   });
 
   test("test with teammate players, target is disconnected, but allowAttackDisconnectedTeammates turned off", async () => {
-    // Mock the Config.allowAttackDisconnectedTeammates() function to return true
+    // Mock the Config.allowAttackDisconnectedTeammates() function to return false
     jest
       .spyOn(game.config(), "allowAttackDisconnectedTeammates")
       .mockReturnValue(false);
@@ -169,14 +169,14 @@ describe("TransportShipExecution", () => {
     testSendingBoat(true, true, false);
   });
 
-  test("test with allianced players, target is connected, and allowAttackDisconnectedTeammates turned on", async () => {
+  test("test with allianced players, target is not disconnected, and allowAttackDisconnectedTeammates turned on", async () => {
     // Mock the Config.allowAttackDisconnectedTeammates() function to return true
     jest
       .spyOn(game.config(), "allowAttackDisconnectedTeammates")
       .mockReturnValue(true);
 
-    // For the attacker only: Mock the Player.isDisconnected() function to return true
-    jest.spyOn(dstOwner, "isDisconnected").mockReturnValue(true);
+    // For the attacker only: Mock the Player.isDisconnected() function to return false
+    jest.spyOn(dstOwner, "isDisconnected").mockReturnValue(false);
 
     // Spawn the TransportShipExecution and run the test suite given the above conditions
     // Do not expect a TransportShip unit to be sent
@@ -184,14 +184,14 @@ describe("TransportShipExecution", () => {
     testSendingBoat(false, false, true);
   });
 
-  test("test with allianced players, target is connected, and allowAttackDisconnectedTeammates turned off", async () => {
-    // Mock the Config.allowAttackDisconnectedTeammates() function to return true
+  test("test with allianced players, target is not disconnected, and allowAttackDisconnectedTeammates turned off", async () => {
+    // Mock the Config.allowAttackDisconnectedTeammates() function to return false
     jest
       .spyOn(game.config(), "allowAttackDisconnectedTeammates")
       .mockReturnValue(false);
 
-    // For the attacker only: Mock the Player.isDisconnected() function to return true
-    jest.spyOn(dstOwner, "isDisconnected").mockReturnValue(true);
+    // For the attacker only: Mock the Player.isDisconnected() function to return false
+    jest.spyOn(dstOwner, "isDisconnected").mockReturnValue(false);
 
     // Spawn the TransportShipExecution and run the test suite given the above conditions
     // Do not expect a TransportShip unit to be sent
@@ -206,7 +206,7 @@ describe("TransportShipExecution", () => {
       .mockReturnValue(true);
 
     // For the attacker only: Mock the Player.isDisconnected() function to return true
-    jest.spyOn(dstOwner, "isDisconnected").mockReturnValue(false);
+    jest.spyOn(dstOwner, "isDisconnected").mockReturnValue(true);
 
     // Spawn the TransportShipExecution and run the test suite given the above conditions
     // Do not expect a TransportShip unit to be sent
@@ -215,13 +215,13 @@ describe("TransportShipExecution", () => {
   });
 
   test("test with allianced players, target is disconnected, and allowAttackDisconnectedTeammates turned off", async () => {
-    // Mock the Config.allowAttackDisconnectedTeammates() function to return true
+    // Mock the Config.allowAttackDisconnectedTeammates() function to return false
     jest
       .spyOn(game.config(), "allowAttackDisconnectedTeammates")
       .mockReturnValue(false);
 
     // For the attacker only: Mock the Player.isDisconnected() function to return true
-    jest.spyOn(dstOwner, "isDisconnected").mockReturnValue(false);
+    jest.spyOn(dstOwner, "isDisconnected").mockReturnValue(true);
 
     // Spawn the TransportShipExecution and run the test suite given the above conditions
     // Do not expect a TransportShip unit to be sent

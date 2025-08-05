@@ -136,7 +136,7 @@ describe("PlayerImpl", () => {
 
     game.config().allowAttackDisconnectedTeammates = () => true;
 
-    expect(game.config().allowAttackDisconnectedTeammates).toBeTruthy();
+    expect(game.config().allowAttackDisconnectedTeammates()).toBeTruthy();
 
     expect(player.canTarget(other)).toBe(true);
   });
