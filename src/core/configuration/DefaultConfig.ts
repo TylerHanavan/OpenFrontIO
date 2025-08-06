@@ -375,8 +375,11 @@ export class DefaultConfig implements Config {
         };
       case UnitType.Warship:
         return {
-          cost: this.costWrapper(UnitType.Warship, (numUnits: number) =>
-            Math.min(1_000_000, (numUnits + 1) * 250_000),
+          cost: this.costWrapper(
+            UnitType.Warship,
+            (numUnits: number) =>
+              Math.min(1_000_000, (numUnits + 1) * 250_000) +
+              Math.max(0, 50000 * (numUnits - 19)),
           ),
           territoryBound: false,
           maxHealth: 1000,
